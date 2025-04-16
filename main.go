@@ -60,5 +60,5 @@ func shutdown() {
 
 func fatal(msg string, args ...any) {
 	slog.Error(msg, args...)
-	shutdown()
+	os.Exit(1)
 }
