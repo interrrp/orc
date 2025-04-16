@@ -19,7 +19,7 @@ func main() {
 func CreateLogger() *slog.Logger {
 	opts := &tint.Options{
 		Level:      slog.LevelInfo,
-		TimeFormat: time.DateTime,
+		TimeFormat: time.RFC3339,
 	}
 	handler := tint.NewHandler(os.Stderr, opts)
 	return slog.New(handler)
