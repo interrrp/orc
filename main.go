@@ -5,6 +5,9 @@ import (
 	"os"
 	"os/exec"
 	"syscall"
+	"time"
+
+	"github.com/lmittmann/tint"
 )
 
 func mustMount(source, target, fsType string) {
@@ -28,6 +31,8 @@ func mustUnmount(target string) {
 }
 
 func main() {
+	setUpLogging()
+
 	mustMount("proc", "/proc", "proc")
 	mustMount("sys", "/sys", "sysfs")
 	mustMount("tmpfs", "/run", "tmpfs")
@@ -56,6 +61,18 @@ func shutdown() {
 		slog.Error("init will be killed, expect a kernel panic")
 		os.Exit(1)
 	}
+}
+
+func setUpLogging() {
+	opts := &tint.Options{
+		Level:      slog.LevelInfo,
+		TimeFormat: time.Kitchen,
+	}
+	handler := tint.NewHandler(os.Stderr, opts)
+
+	logger := slog.New(handler)
+	slog.SetDefault(logger)
+
 }
 
 func fatal(msg string, args ...any) {
