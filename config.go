@@ -1,20 +1,19 @@
 package main
 
-import (
-	"fmt"
+import "github.com/BurntSushi/toml"
 
-	"github.com/BurntSushi/toml"
-)
-
-type config struct {
-	Services []service
+type Config struct {
+	Services []ServiceConfig
 }
 
-func readConfig(path string) (config, error) {
-	var cfg config
-	_, err := toml.DecodeFile(path, &cfg)
-	if err != nil {
-		return cfg, fmt.Errorf("failed to read config from %s: %w", path, err)
-	}
-	return cfg, nil
+type ServiceConfig struct {
+	Name    string
+	Command string
+	LogFile string `toml:"log_file"`
+}
+
+func ReadConfig(path string) (Config, error) {
+	var config Config
+	_, err := toml.DecodeFile(path, &config)
+	return config, err
 }
