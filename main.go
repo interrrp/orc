@@ -15,27 +15,22 @@ import (
 func main() {
 	setUpLogging()
 
-	if err := mountFilesystems(); err != nil {
-		slog.Error("failed to mount filesystems", "err", err)
-		os.Exit(1)
-	}
-
 	cfg, err := readConfig("/etc/orc.toml")
-	if err != nil {
-		slog.Error("failed to read config", "err", err)
-		os.Exit(1)
-	}
+	must(err, "failed to read config")
 
-	if err := startServices(cfg.Services); err != nil {
-		slog.Error("failed to start services", "err", err)
-		os.Exit(1)
-	}
-
-	if err := runShell(); err != nil {
-		slog.Error("shell exited with error", "err", err)
-	}
+	must(mountFilesystems(), "failed to mount filesystems")
+	must(startServices(cfg.Services), "failed to start services")
+	must(runShell(), "shell exited with error")
 
 	shutdown(cfg)
+}
+
+func must(err error, msg string, args ...any) {
+	if err != nil {
+		args = append(args, "err", err)
+		slog.Error(msg, args...)
+		os.Exit(1)
+	}
 }
 
 func mount(source, target, fsType string) error {
@@ -202,8 +197,5 @@ func shutdown(cfg config) {
 	}
 
 	slog.Info("powering off")
-	if err := syscall.Reboot(syscall.LINUX_REBOOT_CMD_POWER_OFF); err != nil {
-		slog.Error("failed to power off", "err", err)
-		os.Exit(1)
-	}
+	must(syscall.Reboot(syscall.LINUX_REBOOT_CMD_POWER_OFF), "failed to power off")
 }
