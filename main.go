@@ -204,7 +204,6 @@ func shutdown(cfg config) {
 	slog.Info("powering off")
 	if err := syscall.Reboot(syscall.LINUX_REBOOT_CMD_POWER_OFF); err != nil {
 		slog.Error("failed to power off", "err", err)
-		slog.Error("init will be killed, expect a kernel panic")
 		os.Exit(1)
 	}
 }
