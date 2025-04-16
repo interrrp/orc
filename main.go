@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log/slog"
 	"os"
 	"os/exec"
@@ -56,6 +57,7 @@ func shutdown() {
 	mustUnmount("/run")
 	mustUnmount("/dev/pts")
 
+	slog.Info("powering off")
 	if err := syscall.Reboot(syscall.LINUX_REBOOT_CMD_POWER_OFF); err != nil {
 		slog.Error("failed to power off", "err", err)
 		slog.Error("init will be killed, expect a kernel panic")
@@ -73,6 +75,11 @@ func setUpLogging() {
 	logger := slog.New(handler)
 	slog.SetDefault(logger)
 
+	clearScreen()
+}
+
+func clearScreen() {
+	fmt.Print("\033c")
 }
 
 func fatal(msg string, args ...any) {
