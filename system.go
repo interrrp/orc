@@ -38,9 +38,7 @@ func (s *System) Start() error {
 		return fmt.Errorf("failed to stop services: %w", err)
 	}
 
-	if err := s.runShell(); err != nil {
-		return fmt.Errorf("failed to run shell: %w", err)
-	}
+	s.runShell()
 
 	return nil
 }
@@ -61,10 +59,10 @@ func (s *System) Stop() error {
 	return nil
 }
 
-func (s *System) runShell() error {
+func (s *System) runShell() {
 	cmd := exec.Command("/bin/sh")
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	return cmd.Run()
+	_ = cmd.Run()
 }
