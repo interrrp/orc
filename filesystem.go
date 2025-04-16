@@ -13,9 +13,9 @@ type FilesystemManager struct {
 }
 
 type filesystem struct {
-	Source string
-	Target string
-	Type   string
+	source string
+	target string
+	fsType string
 }
 
 func NewFilesystemManager(logger *slog.Logger) *FilesystemManager {
@@ -43,12 +43,12 @@ func (fm *FilesystemManager) MountAll() error {
 func (fm *FilesystemManager) UnmountAll() error {
 	var lastErr error
 	iterateReverse(fm.filesystems, func(fs filesystem) {
-		if fs.Target == "/dev" {
+		if fs.target == "/dev" {
 			// Unmounting /dev will cause issues
 			return
 		}
 
-		if err := fm.unmount(fs.Target); err != nil {
+		if err := fm.unmount(fs.target); err != nil {
 			lastErr = err
 		}
 	})
@@ -56,14 +56,14 @@ func (fm *FilesystemManager) UnmountAll() error {
 }
 
 func (fm *FilesystemManager) mount(fs filesystem) error {
-	fm.logger.Info("mounting", "source", fs.Source, "target", fs.Target, "type", fs.Type)
+	fm.logger.Info("mounting", "source", fs.source, "target", fs.target, "type", fs.fsType)
 
-	if err := os.MkdirAll(fs.Target, 0755); err != nil {
-		return fmt.Errorf("failed to create directory for mounting %s: %w", fs.Target, err)
+	if err := os.MkdirAll(fs.target, 0755); err != nil {
+		return fmt.Errorf("failed to create directory for mounting %s: %w", fs.target, err)
 	}
 
-	if err := syscall.Mount(fs.Source, fs.Target, fs.Type, 0, ""); err != nil {
-		return fmt.Errorf("failed to mount %s to %s: %w", fs.Source, fs.Target, err)
+	if err := syscall.Mount(fs.source, fs.target, fs.fsType, 0, ""); err != nil {
+		return fmt.Errorf("failed to mount %s to %s: %w", fs.source, fs.target, err)
 	}
 
 	return nil
