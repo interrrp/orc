@@ -7,7 +7,7 @@ import (
 	"syscall"
 )
 
-func mount(source, target, fsType string) {
+func mustMount(source, target, fsType string) {
 	slog.Info("mounting", "source", source, "target", target, "type", fsType)
 
 	if err := os.MkdirAll(target, 0755); err != nil {
@@ -19,12 +19,20 @@ func mount(source, target, fsType string) {
 	}
 }
 
+func mustUnmount(target string) {
+	slog.Info("unmounting", "target", target)
+
+	if err := syscall.Unmount(target, 0); err != nil {
+		slog.Error("failed to unmount", "err", err)
+	}
+}
+
 func main() {
-	mount("proc", "/proc", "proc")
-	mount("sys", "/sys", "sysfs")
-	mount("tmpfs", "/run", "tmpfs")
-	mount("udev", "/dev", "devtmpfs")
-	mount("devpts", "/dev/pts", "devpts")
+	mustMount("proc", "/proc", "proc")
+	mustMount("sys", "/sys", "sysfs")
+	mustMount("tmpfs", "/run", "tmpfs")
+	mustMount("udev", "/dev", "devtmpfs")
+	mustMount("devpts", "/dev/pts", "devpts")
 
 	cmd := exec.Command("/bin/sh")
 	cmd.Stdin = os.Stdin
@@ -33,9 +41,24 @@ func main() {
 	if err := cmd.Run(); err != nil {
 		fatal("failed to run shell", "err", err)
 	}
+
+	shutdown()
+}
+
+func shutdown() {
+	mustUnmount("/proc")
+	mustUnmount("/sys")
+	mustUnmount("/run")
+	mustUnmount("/dev/pts")
+
+	if err := syscall.Reboot(syscall.LINUX_REBOOT_CMD_POWER_OFF); err != nil {
+		slog.Error("failed to power off", "err", err)
+		slog.Error("init will be killed, expect a kernel panic")
+		os.Exit(1)
+	}
 }
 
 func fatal(msg string, args ...any) {
 	slog.Error(msg, args...)
-	os.Exit(1)
+	shutdown()
 }
