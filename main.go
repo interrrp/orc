@@ -8,27 +8,34 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/BurntSushi/toml"
 	"github.com/lmittmann/tint"
 )
 
 func mustMount(source, target, fsType string) {
 	slog.Info("mounting", "source", source, "target", target, "type", fsType)
 
-	if err := os.MkdirAll(target, 0755); err != nil {
-		fatal("failed to create directory for mounting", "err", err)
-	}
+	must(os.MkdirAll(target, 0755),
+		"failed to create directory for mounting")
 
-	if err := syscall.Mount(source, target, fsType, 0, ""); err != nil {
-		fatal("failed to mount", "err", err)
-	}
+	must(syscall.Mount(source, target, fsType, 0, ""),
+		"failed to mount")
 }
 
 func mustUnmount(target string) {
 	slog.Info("unmounting", "target", target)
+	must(syscall.Unmount(target, 0), "failed to unmount")
+}
 
-	if err := syscall.Unmount(target, 0); err != nil {
-		slog.Error("failed to unmount", "err", err)
-	}
+type service struct {
+	Name    string `toml:"name"`
+	Command string `toml:"command"`
+	LogFile string `toml:"log_file"`
+	process *exec.Cmd
+}
+
+var cfg struct {
+	Services []service
 }
 
 func main() {
@@ -40,13 +47,16 @@ func main() {
 	mustMount("udev", "/dev", "devtmpfs")
 	mustMount("devpts", "/dev/pts", "devpts")
 
+	_, err := toml.DecodeFile("/etc/orc.toml", &cfg)
+	must(err, "failed to read config")
+
+	startServices()
+
 	cmd := exec.Command("/bin/sh")
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
-		fatal("failed to run shell", "err", err)
-	}
+	must(cmd.Run(), "failed to run shell")
 
 	shutdown()
 }
@@ -56,6 +66,8 @@ func shutdown() {
 	mustUnmount("/sys")
 	mustUnmount("/run")
 	mustUnmount("/dev/pts")
+
+	stopServices()
 
 	slog.Info("powering off")
 	if err := syscall.Reboot(syscall.LINUX_REBOOT_CMD_POWER_OFF); err != nil {
@@ -82,7 +94,10 @@ func clearScreen() {
 	fmt.Print("\033c")
 }
 
-func fatal(msg string, args ...any) {
-	slog.Error(msg, args...)
-	os.Exit(1)
+func must(err error, msg string, args ...any) {
+	if err != nil {
+		args = append(args, "err", err)
+		slog.Error(msg, args...)
+		os.Exit(1)
+	}
 }

@@ -1,0 +1,7 @@
+[[services]]
+name = "syslogd"
+command = "/sbin/syslogd"
+
+[[services]]
+name = "crond"
+command = "/usr/sbin/crond"

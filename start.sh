@@ -10,6 +10,7 @@ ROOTFS_IMAGE="$VM/initrd.img"
 KERNEL=$(ls /boot/vmlinuz* | head -n 1)
 
 build_orc() {
+    echo "Building orc"
     go build -o "$VM/init" .
 }
 
@@ -19,6 +20,7 @@ fetch_rootfs() {
         return
     fi
 
+    echo "Fetching Alpine minirootfs"
     mkdir -p "$ROOTFS"
     TMP_TAR="$VM/alpine-minirootfs.tar.gz"
     wget -O "$TMP_TAR" "$ROOTFS_URL"
@@ -26,11 +28,14 @@ fetch_rootfs() {
     rm "$TMP_TAR"
 }
 
-replace_init() {
+copy_files() {
+    echo "Copying files"
     mv "$VM/init" "$ROOTFS_INIT"
+    cp "$ORIG_PWD/orc.example.toml" "$ROOTFS/etc/orc.toml" 
 }
 
 build_rootfs_image() {
+    echo "Building rootfs image"
     cd "$ROOTFS"
     find . | cpio -H newc -o | gzip -9 > "$ROOTFS_IMAGE"
     cd "$ORIG_PWD"
@@ -41,11 +46,13 @@ run_vm() {
         -kernel "$KERNEL" \
         -initrd "$ROOTFS_IMAGE" \
         -append "console=ttyS0 rdinit=/sbin/init" \
+        -netdev user,id=net0 \
+        -device virtio-net,netdev=net0 \
         -nographic
 }
 
 build_orc
 fetch_rootfs
-replace_init
+copy_files
 build_rootfs_image
 run_vm
