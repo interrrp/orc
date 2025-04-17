@@ -5,8 +5,8 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"syscall"
-	"time"
 )
 
 type ServiceManager struct {
@@ -14,18 +14,25 @@ type ServiceManager struct {
 	services []*service
 }
 
-type service struct {
-	logger  *slog.Logger
-	config  ServiceConfig
-	process *exec.Cmd
-}
-
-func NewServiceManager(logger *slog.Logger, configs []ServiceConfig) *ServiceManager {
+func NewServiceManager(logger *slog.Logger, serviceDir string) (*ServiceManager, error) {
 	var services []*service
-	for _, config := range configs {
-		services = append(services, &service{logger: logger, config: config})
+
+	entries, err := os.ReadDir(serviceDir)
+	if err != nil {
+		return nil, fmt.Errorf("reading service directory: %w", err)
 	}
-	return &ServiceManager{logger, services}
+
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			services = append(services, &service{
+				logger:     logger,
+				name:       entry.Name(),
+				scriptPath: filepath.Join(serviceDir, entry.Name()),
+			})
+		}
+	}
+
+	return &ServiceManager{logger, services}, nil
 }
 
 func (sm *ServiceManager) StartAll() error {
@@ -50,98 +57,54 @@ func (sm *ServiceManager) StopAll() error {
 	return lastErr
 }
 
+type service struct {
+	logger     *slog.Logger
+	name       string
+	scriptPath string
+	process    *exec.Cmd
+}
+
 func (svc *service) start() error {
-	svc.logger.Info("starting service", "name", svc.config.Name, "command", svc.config.Command)
-	if svc.config.Mode == "oneshot" {
-		svc.supervise()
-	} else {
-		go svc.supervise()
+	svc.logger.Info("starting service", "name", svc.name)
+
+	cmd := exec.Command("/bin/sh", "-c", ". "+svc.scriptPath+" && start")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("starting service: %w", err)
 	}
+	svc.process = cmd
+
 	return nil
-}
-
-func (svc *service) supervise() {
-	for {
-		process := exec.Command(svc.config.Command)
-		svc.process = process
-
-		svc.redirectOutputToLogFile()
-
-		if err := process.Start(); err != nil {
-			svc.logger.Error("failed to start service", "name", svc.config.Name, "error", err)
-			return
-		}
-
-		exitCode := svc.waitForExit()
-
-		if svc.shouldStop(exitCode) {
-			break
-		}
-	}
-}
-
-func (svc *service) redirectOutputToLogFile() {
-	if svc.config.LogFile == "" {
-		return
-	}
-
-	logFile, err := os.Create(svc.config.LogFile)
-	if err != nil {
-		svc.logger.Error("failed to open log file", "name", svc.config.Name, "error", err)
-		return
-	}
-	svc.process.Stdout = logFile
-	svc.process.Stderr = logFile
-}
-
-func (svc *service) waitForExit() int {
-	err := svc.process.Wait()
-	exitCode := 0
-	if err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			exitCode = exitErr.ExitCode()
-		}
-	}
-	return exitCode
-}
-
-func (svc *service) shouldStop(exitCode int) bool {
-	if exitCode == 0 {
-		svc.logger.Info("service exited", "name", svc.config.Name, "exitCode", exitCode)
-		return true
-	} else {
-		svc.logger.Warn("service exited", "name", svc.config.Name, "exitCode", exitCode)
-
-		shouldRestart := dereferenceOrDefault(svc.config.RestartOnFailure, true)
-		if shouldRestart {
-			svc.logger.Warn("restarting failed service", "name", svc.config.Name)
-			time.Sleep(1 * time.Second)
-		}
-
-		return false
-	}
 }
 
 func (svc *service) stop() error {
-	if svc.exited() {
+	if svc.process == nil || svc.process.Process == nil {
 		return nil
 	}
 
-	svc.logger.Info("stopping service", "name", svc.config.Name)
+	svc.logger.Info("stopping service", "name", svc.name)
+
+	stopCmd := exec.Command("/bin/sh", "-c", ". "+svc.scriptPath+" && stop")
+	stopCmd.Stdout = os.Stdout
+	stopCmd.Stderr = os.Stderr
+
+	if err := stopCmd.Run(); err != nil {
+		svc.logger.Warn("failed to run stop function", "err", err)
+	}
+
 	if err := svc.process.Process.Signal(syscall.SIGTERM); err != nil {
-		return fmt.Errorf("sending SIGTERM: %w", err)
+		svc.logger.Warn("failed to send SIGTERM, killing process", "err", err)
+		if err := svc.process.Process.Kill(); err != nil {
+			svc.logger.Warn("failed to kill process", "err", err)
+		}
 	}
 
 	if err := svc.process.Wait(); err != nil {
-		return fmt.Errorf("waiting for process to stop: %w", err)
+		svc.logger.Warn("failed to wait for process to exit", "err", err)
 	}
 
-	return nil
-}
+	svc.process = nil
 
-func (svc *service) exited() bool {
-	return svc.process == nil ||
-		svc.process.Process == nil ||
-		svc.process.ProcessState == nil ||
-		svc.process.ProcessState.Exited()
+	return nil
 }

@@ -10,21 +10,19 @@ import (
 
 type System struct {
 	logger      *slog.Logger
-	config      Config
 	services    *ServiceManager
 	filesystems *FilesystemManager
 }
 
 func NewSystem(logger *slog.Logger) (*System, error) {
-	config, err := ReadConfig("/etc/orc.toml")
+	services, err := NewServiceManager(logger, "/etc/orc")
 	if err != nil {
-		return nil, fmt.Errorf("loading config: %w", err)
+		return nil, fmt.Errorf("creating service manager: %w", err)
 	}
 
 	return &System{
 		logger:      logger,
-		config:      config,
-		services:    NewServiceManager(logger, config.Services),
+		services:    services,
 		filesystems: NewFilesystemManager(logger),
 	}, nil
 }

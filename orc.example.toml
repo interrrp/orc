@@ -1,9 +1,0 @@
-[[services]]
-name = "syslogd"
-command = "/sbin/syslogd"
-mode = "oneshot"
-
-[[services]]
-name = "crond"
-command = "/usr/sbin/crond"
-mode = "oneshot"
