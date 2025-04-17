@@ -17,3 +17,10 @@ func iterateReverse[T any](slice []T, fn func(T)) {
 		fn(slice[i])
 	}
 }
+
+func dereferenceOrDefault[T any](ptr *T, fallback T) T {
+	if ptr == nil {
+		return fallback
+	}
+	return *ptr
+}

@@ -7,9 +7,11 @@ type Config struct {
 }
 
 type ServiceConfig struct {
-	Name    string
-	Command string
-	LogFile string `toml:"log_file"`
+	Name             string
+	Command          string
+	LogFile          string `toml:"log_file"`
+	Mode             string
+	RestartOnFailure *bool `toml:"restart_on_failure"`
 }
 
 func ReadConfig(path string) (Config, error) {
