@@ -59,11 +59,11 @@ func (fm *FilesystemManager) mount(fs filesystem) error {
 	fm.logger.Info("mounting", "source", fs.source, "target", fs.target, "type", fs.fsType)
 
 	if err := os.MkdirAll(fs.target, 0755); err != nil {
-		return fmt.Errorf("failed to create directory for mounting %s: %w", fs.target, err)
+		return fmt.Errorf("creating directory for mounting %s: %w", fs.target, err)
 	}
 
 	if err := syscall.Mount(fs.source, fs.target, fs.fsType, 0, ""); err != nil {
-		return fmt.Errorf("failed to mount %s to %s: %w", fs.source, fs.target, err)
+		return fmt.Errorf("mounting %s to %s: %w", fs.source, fs.target, err)
 	}
 
 	return nil
@@ -72,7 +72,7 @@ func (fm *FilesystemManager) mount(fs filesystem) error {
 func (fm *FilesystemManager) unmount(target string) error {
 	fm.logger.Info("unmounting", "target", target)
 	if err := syscall.Unmount(target, 0); err != nil {
-		return fmt.Errorf("failed to unmount %s: %w", target, err)
+		return fmt.Errorf("unmounting %s: %w", target, err)
 	}
 	return nil
 }

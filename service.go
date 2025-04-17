@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log/slog"
 	"os"
 	"os/exec"
@@ -122,21 +123,25 @@ func (svc *service) shouldStop(exitCode int) bool {
 }
 
 func (svc *service) stop() error {
-	if svc.process == nil || svc.process.Process == nil {
-		svc.logger.Warn("attempted to stop inactive service")
+	if svc.exited() {
 		return nil
 	}
 
 	svc.logger.Info("stopping service", "name", svc.config.Name)
 	if err := svc.process.Process.Signal(syscall.SIGTERM); err != nil {
-		svc.logger.Error("failed to send SIGTERM", "service", svc.config.Name, "err", err)
-		return err
+		return fmt.Errorf("sending SIGTERM: %w", err)
 	}
 
 	if err := svc.process.Wait(); err != nil {
-		svc.logger.Error("failed to wait for process to stop", "service", svc.config.Name, "err", err)
-		return err
+		return fmt.Errorf("waiting for process to stop: %w", err)
 	}
 
 	return nil
+}
+
+func (svc *service) exited() bool {
+	return svc.process == nil ||
+		svc.process.Process == nil ||
+		svc.process.ProcessState == nil ||
+		svc.process.ProcessState.Exited()
 }
