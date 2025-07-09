@@ -31,7 +31,7 @@ fetch_rootfs() {
 copy_files() {
     echo "Copying files"
     mv "$VM/init" "$ROOTFS_INIT"
-    cp "$ORIG_PWD/orc.example.toml" "$ROOTFS/etc/orc.toml" 
+    mkdir -p "$ROOTFS/etc/orc"
 }
 
 build_rootfs_image() {
