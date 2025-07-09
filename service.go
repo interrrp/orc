@@ -31,6 +31,18 @@ func loadServices() []*service {
 	return services
 }
 
+func startAllServices(services []*service) {
+	for _, s := range services {
+		s.start()
+	}
+}
+
+func stopAllServices(services []*service) {
+	for i := len(services) - 1; i >= 0; i-- {
+		services[i].stop()
+	}
+}
+
 type service struct {
 	name       string
 	scriptPath string

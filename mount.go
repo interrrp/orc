@@ -6,6 +6,21 @@ import (
 	"syscall"
 )
 
+func mountAllFilesystems() {
+	mount("proc", "/proc", "proc")
+	mount("sys", "/sys", "sysfs")
+	mount("tmpfs", "/run", "tmpfs")
+	mount("udev", "/dev", "devtmpfs")
+	mount("devpts", "/dev/pts", "devpts")
+}
+
+func unmountAllFileSystems() {
+	unmount("/dev/pts")
+	unmount("/run")
+	unmount("/sys")
+	unmount("/proc")
+}
+
 func mount(source, target, fsType string) {
 	slog.Info("mounting", "target", target)
 

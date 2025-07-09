@@ -13,31 +13,15 @@ import (
 func main() {
 	initLogger()
 
-	mount("proc", "/proc", "proc")
-	mount("sys", "/sys", "sysfs")
-	mount("tmpfs", "/run", "tmpfs")
-	mount("udev", "/dev", "devtmpfs")
-	mount("devpts", "/dev/pts", "devpts")
-
 	services := loadServices()
-	for _, s := range services {
-		s.start()
-	}
 
+	mountAllFilesystems()
+	startAllServices(services)
 	startShell()
 
-	for i := len(services) - 1; i >= 0; i-- {
-		services[i].stop()
-	}
-
-	unmount("/dev/pts")
-	unmount("/run")
-	unmount("/sys")
-	unmount("/proc")
-
-	if err := syscall.Reboot(syscall.LINUX_REBOOT_CMD_POWER_OFF); err != nil {
-		slog.Error("failed to power off", "err", err)
-	}
+	stopAllServices(services)
+	unmountAllFileSystems()
+	powerOff()
 }
 
 func startShell() {
@@ -52,6 +36,12 @@ func startShell() {
 	}
 	if err := sh.Wait(); err != nil {
 		slog.Error("shell exited", "err", err)
+	}
+}
+
+func powerOff() {
+	if err := syscall.Reboot(syscall.LINUX_REBOOT_CMD_POWER_OFF); err != nil {
+		slog.Error("failed to power off", "err", err)
 	}
 }
 
