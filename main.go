@@ -33,7 +33,9 @@ func startShell() {
 
 	if err := sh.Start(); err != nil {
 		slog.Error("failed to start shell", "err", err)
+		return
 	}
+
 	if err := sh.Wait(); err != nil {
 		slog.Error("shell exited", "err", err)
 	}
